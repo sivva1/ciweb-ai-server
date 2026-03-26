@@ -3,12 +3,23 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler
 
+ALLOWED_ORIGINS = ["https://ciweb.in", "https://www.ciweb.in"]
+
 class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
+        origin = self.headers.get('Origin', '')
+
+        if origin not in ALLOWED_ORIGINS:
+            self.send_response(403)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': 'Forbidden'}).encode())
+            return
+
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', origin)
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
@@ -39,23 +50,27 @@ If there is an issue: point it out simply.
 Code:
 {code}"""
 
-            url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"
+            url = "https://api.groq.com/openai/v1/chat/completions"
 
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"maxOutputTokens": 60, "temperature": 0.5}
+            headers = {
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json"
             }
 
-            response = requests.post(
-                url,
-                params={"key": API_KEY},
-                json=payload,
-                timeout=10
-            )
+            payload = {
+                "model": "llama-3.1-8b-instant",
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 60,
+                "temperature": 0.5
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=10)
 
             if response.status_code == 200:
                 result   = response.json()
-                feedback = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                feedback = result["choices"][0]["message"]["content"].strip()
                 self.wfile.write(json.dumps({'feedback': feedback}).encode())
             else:
                 self.wfile.write(json.dumps({'feedback': ''}).encode())
@@ -64,8 +79,14 @@ Code:
             self.wfile.write(json.dumps({'feedback': ''}).encode())
 
     def do_OPTIONS(self):
+        origin = self.headers.get('Origin', '')
+        if origin not in ALLOWED_ORIGINS:
+            self.send_response(403)
+            self.end_headers()
+            return
+
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', origin)
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
