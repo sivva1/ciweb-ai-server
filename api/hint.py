@@ -5,6 +5,8 @@ from http.server import BaseHTTPRequestHandler
 
 ALLOWED_ORIGINS = ["https://ciweb.in", "https://www.ciweb.in"]
 
+GROQ_MODEL = os.environ.get('GROQ_MODEL', 'llama-3.1-8b-instant')
+
 class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
@@ -83,11 +85,11 @@ User: {message}"""
             }
 
             payload = {
-                "model": "llama-3.1-8b-instant",
+                "model": GROQ_MODEL,
                 "messages": [
                     {"role": "user", "content": prompt}
                 ],
-                "max_tokens": 300,
+                "max_tokens": 600,
                 "temperature": 0.75
             }
 
