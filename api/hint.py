@@ -1,20 +1,30 @@
 import requests
 import json
+import os
 from http.server import BaseHTTPRequestHandler
+
+ALLOWED_ORIGINS = ["https://ciweb.in", "https://www.ciweb.in"]
 
 class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
-        # ── CORS headers ──
+        origin = self.headers.get('Origin', '')
+
+        if origin not in ALLOWED_ORIGINS:
+            self.send_response(403)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': 'Forbidden'}).encode())
+            return
+
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', origin)
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
         try:
-            # Read request body
             length = int(self.headers.get('Content-Length', 0))
             body   = self.rfile.read(length)
             data   = json.loads(body)
@@ -29,8 +39,6 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': 'Message required'}).encode())
                 return
 
-            # ── Get API key from Vercel environment variable ──
-            import os
             API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
             if not API_KEY:
@@ -39,12 +47,11 @@ class handler(BaseHTTPRequestHandler):
                 }).encode())
                 return
 
-            # ── Build prompt ──
             is_hi   = lang == 'hi'
             is_expl = mode == 'explain'
 
             if is_expl:
-                prompt = message  # already built in frontend
+                prompt = message
             else:
                 lang_instruction = (
                     'LANGUAGE: Hinglish (Hindi+English natural mix). Example: "Bhai, yahan ek issue hai..."'
@@ -68,44 +75,45 @@ Code:
 ```
 User: {message}"""
 
-            # ── Call Gemini API ──
-            url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"
+            url = "https://api.groq.com/openai/v1/chat/completions"
 
-            payload = {
-                "contents": [
-                    {
-                        "parts": [{"text": prompt}]
-                    }
-                ],
-                "generationConfig": {
-                    "maxOutputTokens": 300,
-                    "temperature": 0.75
-                }
+            headers = {
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json"
             }
 
-            response = requests.post(
-                url,
-                params={"key": API_KEY},
-                json=payload,
-                timeout=15
-            )
+            payload = {
+                "model": "llama-3.1-8b-instant",
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 300,
+                "temperature": 0.75
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=15)
 
             if response.status_code == 200:
                 result = response.json()
-                reply  = result["candidates"][0]["content"]["parts"][0]["text"]
+                reply  = result["choices"][0]["message"]["content"]
                 self.wfile.write(json.dumps({'reply': reply}).encode())
             else:
                 self.wfile.write(json.dumps({
-                    'error': f'Gemini error {response.status_code}: {response.text[:200]}'
+                    'error': f'Groq error {response.status_code}: {response.text[:200]}'
                 }).encode())
 
         except Exception as e:
             self.wfile.write(json.dumps({'error': str(e)}).encode())
 
     def do_OPTIONS(self):
-        # Handle CORS preflight
+        origin = self.headers.get('Origin', '')
+        if origin not in ALLOWED_ORIGINS:
+            self.send_response(403)
+            self.end_headers()
+            return
+
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', origin)
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
