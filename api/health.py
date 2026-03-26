@@ -4,12 +4,14 @@ from http.server import BaseHTTPRequestHandler
 
 ALLOWED_ORIGINS = ["https://ciweb.in", "https://www.ciweb.in"]
 
+# ── Ek jagah change karo, sab jagah update ho jayega ──
+GROQ_MODEL = os.environ.get('GROQ_MODEL', 'llama-3.1-8b-instant')
+
 class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         origin = self.headers.get('Origin', '')
 
-        # Health check — allow direct browser access (no origin) + allowed origins
         if origin and origin not in ALLOWED_ORIGINS:
             self.send_response(403)
             self.send_header('Content-Type', 'application/json')
@@ -26,9 +28,9 @@ class handler(BaseHTTPRequestHandler):
         key_set = bool(os.environ.get('GEMINI_API_KEY', ''))
 
         self.wfile.write(json.dumps({
-            'ok':      True,
-            'keySet':  key_set,
-            'model':   'llama-3.1-8b-instant',
-            'server':  'Vercel Serverless',
+            'ok':       True,
+            'keySet':   key_set,
+            'model':    GROQ_MODEL,
+            'server':   'Vercel Serverless',
             'provider': 'Groq'
         }).encode())
