@@ -89,7 +89,7 @@ User: {message}"""
                 "messages": [
                     {"role": "user", "content": prompt}
                 ],
-                "max_tokens": 600,
+                "max_tokens": 1000,
                 "temperature": 0.75
             }
 
