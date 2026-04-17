@@ -62,7 +62,7 @@ Code:
                 "messages": [
                     {"role": "user", "content": prompt}
                 ],
-                "max_tokens": 60,
+                "max_tokens": 600,
                 "temperature": 0.5
             }
 
